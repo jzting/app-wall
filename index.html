@@ -1,0 +1,250 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//JP" "http://www.w3.org/TR/html4/loose.dtd"> 
+<html xmlns="http://www.w3.org/1999/xhtml"> 
+<head> 
+<style>
+body { background: #000; margin: 0; padding: 0; }
+#icon-container > img {
+  position: absolute;
+  left: 0px;
+  top: -57px;
+  -webkit-transition-property: -webkit-transform;
+  -webkit-transition-timing-function: ease-in-out;  
+}
+</style>
+<script> 
+document.addEventListener('DOMContentLoaded', function() {
+  window.app = new ApplicationController();
+}, false);
+
+/* Color Grid */
+function ColorGrid() {
+  this.NUM_COLUMNS = 18;
+  this.NUM_ROWS = 12;
+  this.GRID_HEIGHT = 12 * 57;
+  this.columns = [];
+  for(var i = 0; i < this.NUM_COLUMNS; i++) {
+    this.columns.push([]);
+  }
+}
+
+/* Query functions */
+ColorGrid.prototype.isColumnFull = function(column) {
+  if(column < 0 || column >= this.NUM_COLUMNS) {
+    return true;
+  }
+  else {
+    return this.columns[column].length >= this.NUM_ROWS;
+  }    
+};
+
+ColorGrid.prototype.iconsInColumn = function(column) {
+  if(column < 0 || column >= this.NUM_COLUMNS) {
+    return -1;
+  }    
+  return this.columns[column].length;    
+};
+
+ColorGrid.prototype.mostOpenColumn = function(col1, col2, col3) {
+  var col1Count = this.iconsInColumn(col1);
+  var col2Count = this.iconsInColumn(col2);
+  var col3Count = this.iconsInColumn(col3);  
+  var min = Math.min(col1Count, col2Count, col3Count);    
+  var column;
+  
+  switch(min) {
+    case col1Count:
+      column = col1;
+      break;
+    case col2Count:
+      column = col2;
+      break;
+    case col3Count:
+      column = col3;
+      break;
+    default:
+      column = col1;
+  }
+  
+  return column;
+};
+
+ColorGrid.prototype.dropIcon = function(column) {
+  if(this.isColumnFull(column)) {
+    return false;
+  }
+  else {
+    this.columns[column].push(1);
+    return true;
+  }    
+};
+
+/* Main App */
+function ApplicationController() {
+  this.appData = { };
+  this.icons = [];
+  this.loadedIconCounter = 0;
+  this.canvas = document.createElement('canvas');
+  this.canvas.width = 57;
+  this.canvas.height = 57;
+  this.ctx = this.canvas.getContext('2d');
+  this.processApps();
+  window.grid = new ColorGrid();
+}
+
+ApplicationController.prototype.processApps = function() {
+  for(i in this.appData.contentData) {
+    var server_url = "//jzlabs.com/stuff/app-wall/?url=" + escape(this.appData.contentData[i].artwork_lowdpi) + "&callback=app.calculateAverageColor";
+    var script = document.createElement('script');
+    script.src = server_url;
+    document.body.appendChild(script);  
+  }
+};
+
+ApplicationController.prototype.checkFinished = function() {    
+  if(this.loadedIconCounter == this.appData.contentData.length) {
+    this.startAnimating();
+  }
+};
+
+ApplicationController.prototype.columnForColor = function(hue) {
+  if(hue <= 60) {
+    return grid.mostOpenColumn(0,1,2);
+  }
+  else if(hue <= 120) {
+    return grid.mostOpenColumn(3,4,5);    
+  }
+  else if(hue <= 180) {
+    return grid.mostOpenColumn(6,7,8);    
+  }
+  else if(hue <= 240) {
+    return grid.mostOpenColumn(9,10,11);
+  }
+  else if(hue <= 300) {
+    return grid.mostOpenColumn(12,13,14);    
+  }  
+  else {
+    return grid.mostOpenColumn(15,16,17);    
+  }  
+};
+
+ApplicationController.prototype.randomNumberInRange = function(min, max) {  
+  return Math.floor(Math.random() * (max - min)) + min;  
+};
+
+ApplicationController.prototype.startAnimating = function() {
+  var container = document.getElementById('icon-container');   
+
+  var that = this;
+  var animationInterval = setInterval(function() {
+    var icon = that.icons.pop();    
+    if(!icon) {
+      clearInterval(animationInterval);
+      return;
+    }
+    
+    var column = that.columnForColor(icon.color[0]);    
+    if(grid.dropIcon(column)) {
+      var row = grid.iconsInColumn(column);
+      var imageX = Math.floor(57 * column);
+      var imageY = Math.floor(57 * (grid.NUM_ROWS - row)) + 57;
+
+      var image = icon.image;
+      image.style.webkitTransform = 'translate3d(' + imageX + 'px, 57px, 0px)';
+      container.appendChild(image);
+    
+      // set transition duration dynamically based on how far an icon has to fall
+      var h = imageY / grid.GRID_HEIGHT * 0.2;
+      var duration = Math.sqrt(2 * h / 9.8) * 2;
+      image.style.webkitTransitionDuration = duration + 's';
+
+      // animate the icon
+      setTimeout(function() {
+        image.style.webkitTransform = 'translate3d(' + imageX + 'px, ' + imageY + 'px, 0px)';
+      }, 0);
+    }          
+  }, 100);                   
+};
+
+ApplicationController.prototype.calculateAverageColor = function(response) {
+  var that = this;
+  var image = new Image();
+  
+  image.src = response.data;
+  image.addEventListener('load', function() {
+    that.loadedIconCounter++;
+    that.ctx.drawImage(image, 0, 0, 57, 57);
+
+    var image_data = that.ctx.getImageData(0, 0,  57, 57);
+    var image_data_array = image_data.data;
+    var image_data_array_length = image_data_array.length;
+    var rgb = [0,0,0];
+
+    for (var i = 0; i < image_data_array_length; i += 4){
+      rgb[0] += image_data_array[i];
+      rgb[1] += image_data_array[i+1];
+      rgb[2] += image_data_array[i+2];
+    }
+
+    rgb[0] = Math.round(rgb[0]/=(image_data_array_length/3)); // R
+    rgb[1] = Math.round(rgb[1]/=(image_data_array_length/3)); // G
+    rgb[2] = Math.round(rgb[2]/=(image_data_array_length/3)); // B
+
+    var hsb = that.rgbToHsb(rgb[0], rgb[1], rgb[2]);
+
+    // console.log('rgb', rgb);
+    // console.log('hsb', hsb);
+
+    that.icons.push({image:image, color:hsb});    
+    that.checkFinished();    
+  }, false);  
+};
+
+ApplicationController.prototype.rgbToHsb = function(r, g, b) {
+  var red = new Number(r);
+  var green = new Number(g);
+  var blue = new Number(b);
+
+  var min = new Number(Math.min(red, green));
+  var max = new Number(Math.max(red, green));
+  var delta = new Number(0);
+  var hue = new Number(0);
+  var sat = new Number(0);
+  var lumin = new Number(0);
+
+  min = Math.min(min, blue);
+  max = Math.max(max, blue);
+  delta = (max - min);
+
+  if (max != 0) {
+    sat = delta / max; 
+    lumin = max / 255;
+    delta = delta + 0;
+    
+    red = red + 0;
+    green = green + 0;
+    blue = blue + 0;
+    if ( delta != 0 ) {
+      if (red==max) {
+        hue = (green - blue) / delta;
+      }
+      else if (green==max) {
+        hue = 2 + ((blue - red) / delta);
+      }
+      else {
+        hue = 4 + ((red - green) / delta);;
+      }
+    }
+    hue = hue * 60;  
+    if (hue < 0) hue = hue + 360;
+  }
+
+  return [Math.round(hue), Math.round(sat * 100), Math.round(lumin * 100)];
+  
+};
+</script>  
+<title></title> 
+</head> 
+<body> 
+  <div id="icon-container"></div>
+</body>
+</html>
