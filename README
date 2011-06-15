@@ -1,0 +1,4 @@
+Usage:
+./app-wall.rb -u username -p password
+
+Where username and password are your iTunes App Store credentials.
