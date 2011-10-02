@@ -35,19 +35,20 @@ APPLE_ID = options[:username]
 PASSWORD = options[:password]
 
 # login with apple id and save cookie to disk
-`curl -s -L --cookie-jar cookies.txt  -H "User-Agent: iTunes-iPhone/5.0 (4; 32GB)" -H "Accept-Encoding: gzip, deflate" "https://p14-buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate?attempt=0&why=signIn&guid=foobar&password=#{PASSWORD}&rmp=0&appleId=#{APPLE_ID}&createSession=true"`
+`curl -s -L --cookie-jar cookies.txt  -H "User-Agent: iTunes-iPhone/5.0 (4; 32GB)" "https://p24-buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate?attempt=0&why=signIn&guid=foo&password=#{PASSWORD}&rmp=0&appleId=#{APPLE_ID}&createSession=true"`
 
 # fetch purchased app ids
-id_response = `curl -s --cookie cookies.txt -H "User-Agent: iTunes-iPhone/5.0 (4; 32GB)" -H "Accept-Encoding: gzip, deflate" "https://se.itunes.apple.com/WebObjects/MZStoreElements.woa/wa/viewAppPurchases?s=143441&guid=foobar" | gunzip`
-ids = id_response.match(/"contentIds":(.+?), "fetchContentUrl"/m)[1]
+id_response = `curl -s --cookie cookies.txt -H "User-Agent: iTunes-iPhone/5.0 (4; 32GB)" "https://se.itunes.apple.com/WebObjects/MZStoreElements.woa/wa/purchases?guid=foo&mt=8"`
+ids = id_response.match(/"contentIds":(.+?), "fetchContentUrl"/m)[1].gsub(/\s+/, "")
 
 # fetch detailed data about ids
 url_encoded_ids = URI.escape(ids)
-data_response = `curl -s --cookie-jar cookies.txt -H "User-Agent: iTunes-iPhone/5.0 (4; 32GB)" -H "Accept-Encoding: gzip, deflate" -d "ids=#{url_encoded_ids}&maxCount=10000" "https://se.itunes.apple.com/WebObjects/MZStoreElements.woa/wa/viewAppPurchasesFragment" | gunzip`
+data_response = `curl -s --cookie cookies.txt -H "User-Agent: iTunes-iPhone/5.0 (4; 32GB)" -d "ids=#{url_encoded_ids}&maxCount=10000" "https://se.itunes.apple.com/WebObjects/MZStoreElements.woa/wa/purchasesFragment?guid=foo&mt=8"`
 
 # write json into html file
 html = File.read('index.html')
 html.gsub!(/this.appData = \{.+?\};/m, "this.appData = #{data_response};")
+
 File.open('index.html', 'w') { |file| file.puts html }
 
 # start local server
