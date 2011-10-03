@@ -1,6 +1,8 @@
 #!/usr/bin/ruby
 require 'uri'
 require 'optparse'
+require 'rubygems'
+require 'typhoeus'
 
 options = {}
 
@@ -45,14 +47,39 @@ ids_array = ids[1..-2].split(',').collect! {|n| n.to_i}
 # fetch prices
 PRICE_MATCH = /<div class="price">\$(.+?)<\/div>/
 prices = []
+free_apps = 0
+
+# multithreaded action
+hydra = Typhoeus::Hydra.new(:max_concurrency => 50)
 
 ids_array.each do |id|
-  price_response = `curl -s "http://itunes.apple.com/us/app/a/id#{id}?mt=8"`
-  if price_response.match(PRICE_MATCH)
-    price = price_response.match(PRICE_MATCH)[1].to_f
-    puts price
-    prices << price
+  req = Typhoeus::Request.new("http://itunes.apple.com/us/app/a/id#{id}?mt=8")
+  req.on_complete do |response|        
+    if response.body.match(PRICE_MATCH)
+      price = response.body.match(PRICE_MATCH)[1].to_f
+      puts price
+      prices << price
+    else
+      free_apps += 1
+    end
   end
+  hydra.queue req
 end
 
+hydra.run
+
+### slow version
+# ids_array.each do |id|
+#   price_response = `curl -s "http://itunes.apple.com/us/app/a/id#{id}?mt=8"`
+#   if price_response.match(PRICE_MATCH)
+#     price = price_response.match(PRICE_MATCH)[1].to_f
+#     puts price
+#     prices << price
+#   else
+#     free_apps += 1
+#   end
+# end
+
 puts "Total Spent: $" + prices.inject(:+).to_s
+puts "Free Apps: " + (free_apps.to_f / ids_array.length * 100).round.to_s + "%"
+puts "Paid Apps: " + (prices.length.to_f / ids_array.length * 100).round.to_s + "%"
