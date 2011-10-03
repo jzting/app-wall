@@ -27,7 +27,7 @@ login_response = `curl -s -L --cookie-jar cookies.txt  -H "User-Agent: iTunes-iP
 
 if !login_response.match(/passwordToken/)
   puts ""
-  puts "Invalid username or password."
+  puts "\e[31mInvalid username or password.\e[0m"
   exit
 end
 
@@ -57,7 +57,7 @@ if SLOW_VERSION
       price = response.match(PRICE_MATCH)[1].to_f      
       # puts "#{title}: $#{price}"
       total_price += price
-      print "\rTotal Value of Apps: $#{'%0.2f' % total_price}"
+      print "\r\e[36mTotal Value of Apps:\e[0m $#{'%0.2f' % total_price}"
       prices << price
     else
       free_apps += 1
@@ -75,7 +75,7 @@ else
         price = response.body.match(PRICE_MATCH)[1].to_f      
         # puts "#{title}: $#{price}"
         total_price += price
-        print "\rTotal Value of Apps: $#{'%0.2f' % total_price}"
+        print "\r\e[32mTotal Value of Apps:\e[0m $#{'%0.2f' % total_price}"
         prices << price
       else
         free_apps += 1
@@ -89,5 +89,4 @@ end
 
 puts ""
 # puts "Total Value of Apps: $" + prices.inject(:+).to_s
-puts "Free Apps: " + (free_apps.to_f / ids_array.length * 100).round.to_s + "%"
-puts "Paid Apps: " + (prices.length.to_f / ids_array.length * 100).round.to_s + "%"
+puts "\e[36mFree:\e[0m " + (free_apps.to_f / ids_array.length * 100).round.to_s + "%  \e[36mPaid:\e[0m " + (prices.length.to_f / ids_array.length * 100).round.to_s + "%"
