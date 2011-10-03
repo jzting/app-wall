@@ -1,6 +1,5 @@
 #!/usr/bin/ruby
 require 'uri'
-require 'optparse'
 require 'rubygems'
 
 begin
@@ -67,7 +66,7 @@ if SLOW_VERSION
 else  
 # multithreaded action
   hydra = Typhoeus::Hydra.new(:max_concurrency => 50)
-
+  
   ids_array.each do |id|
     req = Typhoeus::Request.new("http://itunes.apple.com/us/app/a/id#{id}?mt=8")
     req.on_complete do |response|        
@@ -84,7 +83,7 @@ else
     end
     hydra.queue req
   end
-
+  
   hydra.run
 end
 
