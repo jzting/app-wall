@@ -46,6 +46,8 @@ ids_array = ids[1..-2].split(',').collect! {|n| n.to_i}
 
 # fetch prices
 PRICE_MATCH = /<div class="price">\$(.+?)<\/div>/
+TITLE_MATCH = /<h1>(.+?)<\/h1>/
+
 prices = []
 free_apps = 0
 
@@ -56,8 +58,9 @@ ids_array.each do |id|
   req = Typhoeus::Request.new("http://itunes.apple.com/us/app/a/id#{id}?mt=8")
   req.on_complete do |response|        
     if response.body.match(PRICE_MATCH)
-      price = response.body.match(PRICE_MATCH)[1].to_f
-      puts price
+      title = response.body.match(TITLE_MATCH)[1]      
+      price = response.body.match(PRICE_MATCH)[1].to_f      
+      puts "#{title}: $#{price}"
       prices << price
     else
       free_apps += 1
@@ -80,6 +83,7 @@ hydra.run
 #   end
 # end
 
+puts ""
 puts "Total Spent: $" + prices.inject(:+).to_s
 puts "Free Apps: " + (free_apps.to_f / ids_array.length * 100).round.to_s + "%"
 puts "Paid Apps: " + (prices.length.to_f / ids_array.length * 100).round.to_s + "%"
