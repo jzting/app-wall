@@ -2,7 +2,12 @@
 require 'uri'
 require 'optparse'
 require 'rubygems'
-require 'typhoeus'
+begin
+  require 'typhoeus'
+  SLOW_VERSION = false
+rescue LoadError
+  SLOW_VERSION = true
+end
 
 options = {}
 
@@ -51,37 +56,41 @@ TITLE_MATCH = /<h1>(.+?)<\/h1>/
 prices = []
 free_apps = 0
 
-# multithreaded action
-hydra = Typhoeus::Hydra.new(:max_concurrency => 50)
-
-ids_array.each do |id|
-  req = Typhoeus::Request.new("http://itunes.apple.com/us/app/a/id#{id}?mt=8")
-  req.on_complete do |response|        
-    if response.body.match(PRICE_MATCH)
-      title = response.body.match(TITLE_MATCH)[1]      
-      price = response.body.match(PRICE_MATCH)[1].to_f      
+if SLOW_VERSION
+  # slow version
+  ids_array.each do |id|
+    response = `curl -s "http://itunes.apple.com/us/app/a/id#{id}?mt=8"`
+    if response.match(PRICE_MATCH)
+      title = response.match(TITLE_MATCH)[1]      
+      price = response.match(PRICE_MATCH)[1].to_f      
       puts "#{title}: $#{price}"
       prices << price
     else
       free_apps += 1
     end
+  end  
+else  
+# multithreaded action
+  hydra = Typhoeus::Hydra.new(:max_concurrency => 50)
+
+  ids_array.each do |id|
+    req = Typhoeus::Request.new("http://itunes.apple.com/us/app/a/id#{id}?mt=8")
+    req.on_complete do |response|        
+      if response.body.match(PRICE_MATCH)
+        title = response.body.match(TITLE_MATCH)[1]      
+        price = response.body.match(PRICE_MATCH)[1].to_f      
+        puts "#{title}: $#{price}"
+        prices << price
+      else
+        free_apps += 1
+      end
+    end
+    hydra.queue req
   end
-  hydra.queue req
+
+  hydra.run
 end
 
-hydra.run
-
-### slow version
-# ids_array.each do |id|
-#   price_response = `curl -s "http://itunes.apple.com/us/app/a/id#{id}?mt=8"`
-#   if price_response.match(PRICE_MATCH)
-#     price = price_response.match(PRICE_MATCH)[1].to_f
-#     puts price
-#     prices << price
-#   else
-#     free_apps += 1
-#   end
-# end
 
 puts ""
 puts "Total Spent: $" + prices.inject(:+).to_s
