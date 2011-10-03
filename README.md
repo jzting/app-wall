@@ -10,4 +10,4 @@ Extras
 See the total value of the apps you have downloaded. Requires the typhoeus gem for multithreaded fetching.
         
         sudo gem install typhoeus
-        <!-- ./prices.rb -u username -p password -->
+        ./prices.rb -u username -p password
