@@ -45,7 +45,9 @@ TITLE_MATCH = /<h1>(.+?)<\/h1>/
 
 prices = []
 free_apps = 0
-puts ""
+total_price = 0.0
+puts "\n\n"
+$stdout.sync = true
 
 if SLOW_VERSION
   # slow version
@@ -54,7 +56,9 @@ if SLOW_VERSION
     if response.match(PRICE_MATCH)
       title = response.match(TITLE_MATCH)[1]      
       price = response.match(PRICE_MATCH)[1].to_f      
-      puts "#{title}: $#{price}"
+      # puts "#{title}: $#{price}"
+      total_price += price
+      print "\rTotal Value of Apps: $#{'%0.2f' % total_price}"
       prices << price
     else
       free_apps += 1
@@ -70,7 +74,9 @@ else
       if response.body.match(PRICE_MATCH)
         title = response.body.match(TITLE_MATCH)[1]      
         price = response.body.match(PRICE_MATCH)[1].to_f      
-        puts "#{title}: $#{price}"
+        # puts "#{title}: $#{price}"
+        total_price += price
+        print "\rTotal Value of Apps: $#{'%0.2f' % total_price}"
         prices << price
       else
         free_apps += 1
@@ -82,8 +88,7 @@ else
   hydra.run
 end
 
-
 puts ""
-puts "Total Value of Apps: $" + prices.inject(:+).to_s
+# puts "Total Value of Apps: $" + prices.inject(:+).to_s
 puts "Free Apps: " + (free_apps.to_f / ids_array.length * 100).round.to_s + "%"
 puts "Paid Apps: " + (prices.length.to_f / ids_array.length * 100).round.to_s + "%"
