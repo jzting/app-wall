@@ -2,6 +2,7 @@
 require 'uri'
 require 'optparse'
 require 'rubygems'
+
 begin
   require 'typhoeus'
   SLOW_VERSION = false
@@ -9,38 +10,27 @@ rescue LoadError
   SLOW_VERSION = true
 end
 
-options = {}
+begin
+  print "Username: "
+  username = $stdin.gets.chomp
 
-optparse = OptionParser.new do |opts|                                                                                                                                                                             
-  opts.on('-u', '--username USERNAME', 'your App Store username') do |username|                                                                                                                                                
-    options[:username] = username
-  end                                                                                                                                                                                                             
-
-  opts.on('-p', '--password PASSWORD', 'your App Store password') do |password|                                                                                                                          
-    options[:password] = password                                                                                                                                                                                     
-  end
+  print "Password: "
+  system "stty -echo"
+  password = $stdin.gets.chomp
+  system "stty echo"
+rescue NoMethodError, Interrupt
+  system "stty echo"
+  exit
 end
 
-begin                                                                                                                                                                                                             
-  optparse.parse!                                                                                                                                                  
-  mandatory = [:username, :password]                                                                                                                                                                   
-  missing = mandatory.select{ |param| options[param].nil? }                                                                                                         
-  if not missing.empty?                                                                                                                                           
-    puts "Missing options: #{missing.join(', ')}"                                                                                                                 
-    puts optparse                                                                                                                                                 
-    exit                                                                                                                                                          
-  end                                                                                                                                                            
-rescue OptionParser::InvalidOption, OptionParser::MissingArgument                                                                                                        
-  puts $!.to_s                                                     
-  puts optparse                                                    
-  exit                                                             
-end                                                                
-
-APPLE_ID = options[:username]
-PASSWORD = options[:password]
-
 # login with apple id and save cookie to disk
-`curl -s -L --cookie-jar cookies.txt  -H "User-Agent: iTunes-iPhone/5.0 (4; 32GB)" "https://p24-buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate?attempt=0&why=signIn&guid=foo&password=#{PASSWORD}&rmp=0&appleId=#{APPLE_ID}&createSession=true"`
+login_response = `curl -s -L --cookie-jar cookies.txt  -H "User-Agent: iTunes-iPhone/5.0 (4; 32GB)" "https://p24-buy.itunes.apple.com/WebObjects/MZFinance.woa/wa/authenticate?attempt=0&why=signIn&guid=foo&password=#{password}&rmp=0&appleId=#{username}&createSession=true"`
+
+if !login_response.match(/passwordToken/)
+  puts ""
+  puts "Invalid username or password."
+  exit
+end
 
 # fetch purchased app ids
 id_response = `curl -s --cookie cookies.txt -H "User-Agent: iTunes-iPhone/5.0 (4; 32GB)" "https://se.itunes.apple.com/WebObjects/MZStoreElements.woa/wa/purchases?guid=foo&mt=8"`
@@ -55,6 +45,7 @@ TITLE_MATCH = /<h1>(.+?)<\/h1>/
 
 prices = []
 free_apps = 0
+puts ""
 
 if SLOW_VERSION
   # slow version
@@ -93,6 +84,6 @@ end
 
 
 puts ""
-puts "Total Spent: $" + prices.inject(:+).to_s
+puts "Total Value of Apps: $" + prices.inject(:+).to_s
 puts "Free Apps: " + (free_apps.to_f / ids_array.length * 100).round.to_s + "%"
 puts "Paid Apps: " + (prices.length.to_f / ids_array.length * 100).round.to_s + "%"
